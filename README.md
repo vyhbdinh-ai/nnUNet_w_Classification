@@ -1,15 +1,25 @@
-# nnUNet_w_Classification
+# Pancreas Segmentation and Classification with multitask nnUNet
 
+## Overview
+Extend the original nnUNetv2 to perform:
+- Semantic Segmentation (Pancreas, Lesion)
+- Classification (Subtype prediction)
+Added files:
+- dataset_conversion.py
+- nnUNetTrainer_multitask.py
+- MultiTaskPredictor.py (run inference)
+  
 ## Environments and Requirements
-
-- Windows/Ubuntu version
-- CPU, RAM, GPU information
-- CUDA version
-- python version
+Run Environment:
+- OS: Windows 11
+- GPU: NVIDIA GeForce RTX 4090
+- RAM: 
+- CUDA version: 12.9
+- python version: 3.12.12
 
 To install environments:
-
 ```setup
+# Make sure install pytorch properly
 git clone https://github.com/MIC-DKFZ/nnUNet.git
 cd nnUNet
 pip install -e .
@@ -17,8 +27,7 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
-Set up nnUNet environment variables
-
+Set up nnUNet paths
 ```
 set nnUNet_raw=nnUNet_data/nnUNet_raw
 set nnUNet_preprocessed=nnUNet_data/nnUNet_preprocessed
@@ -26,10 +35,12 @@ set nnUNet_results=nnUNet_data/nnUNet_results
 ```
 
 ## Data Preparation
-- Copy original data into imagesTr, imagesTs, labels in "Dataset101_Pancreas/nnUNet_raw"
-- Create dataset.json
-- Create final_splits.json to keep the original train, val data
-- Create labels for segmentation (csv file)
+1. Copy original data into imagesTr, imagesTs
+2. Copy segmentation mask into labelsTr
+3. Create:
+  * dataset.json
+  * final_splits.json 
+  * classification_labels.csv
   
 ```python
 python dataset_conversion.py \
@@ -38,23 +49,21 @@ python dataset_conversion.py \
     --dataset_id 101
 ```
 
-**Move nnUNetTrainer_multitask.py into "/nnunetv2/training/nnUNetTrainer"**
-
 ## Preprocessing
-
 ```
 nnUNetv2_plan_and_preprocess -d 101 -c 3d_fullres --verify_dataset_integrity -pl nnUNetPlannerResEncM
 ```
 
 ## Train
 >Describe how to train the models, with example commands, including the full training procedure and appropriate hyper-parameters.
+**Move nnUNetTrainer_multitask.py into "/nnunetv2/training/nnUNetTrainer"**
+Then start training with:
 ```
 nnUNetv2_train 101 3d_fullres 0 -tr nnUNetTrainer_multitask -p nnUNetResEncUNetMPlans
 ```
 
 ## Evaluation
-
-Validation metrics (from Metrics Reloaded paper) was combined into the trainer script at the end of training process and saved into final_metrics.json:
+Validation metrics (from Metrics Reloaded paper) was combined into the trainer script (after training process):
 - For segmentation:
   * Dice score (dsc)
   * Normalized surface dice (nsd)
@@ -66,7 +75,8 @@ Validation metrics (from Metrics Reloaded paper) was combined into the trainer s
   * Likelihood ratio+ (lr_plus)
   * Expected calibration error (ece)
   * Brier score (brier_score)
-Metrics are available per class.
+These metrics are reported per class and stored in:
+nnUNet_results/.../final_metrics.json
 
 ## Results
 
@@ -81,17 +91,26 @@ Metrics are available per class.
 | F1 macro                   |            |            |            |
 
 ## Inference
-- For default speed: nnUNetv2_predict ...
-- For faster speed: nnUNetv2_predict ...
-  
-| Default | Speed up |
-|:-------:|:--------:|
-| x       | y        |
+Custom multitask inference script
+| Mode          | Description                                                     |
+|:--------------|:----------------------------------------------------------------|
+| Default       | Run baseline inference                                          |
+| --compare     | Runs baseline + optimized inference and prints time comparison  |
+Outputs:
+- Segmentation predictions
+- Classification results &arr classifications.json
+- Speed comparison (optional: uncomment in script to save) &arr *speed_comparison.json*
 
-## Notes
-- Evaluation can be seperated into an individually file
+```
+python MultiTaskPredictor.py -i imagesTs -o predictions -d 001 --compare
+```
+  
+| Baseline | Optimized | Speed up (%) |
+|:--------:|:---------:|:------------:|
+| x        | y         | z%           |
+
 
 ## References
-- nnUNet paper
-- Metrics Reloaded
+* nnU-Net: Isensee et al., Nature Methods, 2021
+* Metrics Reloaded: Maier-Hein et al., Medical Image Analysis, 2022
 
