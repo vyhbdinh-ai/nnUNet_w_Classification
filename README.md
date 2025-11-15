@@ -56,8 +56,8 @@ nnUNetv2_plan_and_preprocess -d 101 -c 3d_fullres --verify_dataset_integrity -pl
 ```
 
 ## Train
->Describe how to train the models, with example commands, including the full training procedure and appropriate hyper-parameters.
 **Move nnUNetTrainer_multitask.py into "/nnunetv2/training/nnUNetTrainer"**
+
 Then start training with:
 ```
 nnUNetv2_train 101 3d_fullres 0 -tr nnUNetTrainer_multitask -p nnUNetResEncUNetMPlans
@@ -76,6 +76,7 @@ Validation metrics (from Metrics Reloaded paper) was combined into the trainer s
   * Likelihood ratio+ (lr_plus)
   * Expected calibration error (ece)
   * Brier score (brier_score)
+
 These metrics are reported per class and stored in:
 nnUNet_results/.../final_metrics.json
 
@@ -97,6 +98,7 @@ Custom multitask inference script
 |:--------------|:----------------------------------------------------------------|
 | Default       | Run baseline inference                                          |
 | --compare     | Runs baseline + optimized inference and prints time comparison  |
+
 Outputs:
 - Segmentation predictions
 - Classification results &arr classifications.json
