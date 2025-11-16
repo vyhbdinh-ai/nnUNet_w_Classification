@@ -114,8 +114,8 @@ def extract_cases(source_dir: Path, target_nnunet_dataset_dir: Path):
 
     test_cases: List[str] = []
     for test_file in test_files:
-        case_id = test_file.stem
-        shutil.copy2(test_file, target_nnunet_dataset_dir / "imagesTs" / f"{case_id}_0000.nii.gz")
+        case_id = test_file.stem.replace(".nii", "")
+        shutil.copy2(test_file, target_nnunet_dataset_dir / "imagesTs" / f"{case_id}.nii.gz")
         test_cases.append(case_id)
 
     return train_cases, val_cases, test_cases
