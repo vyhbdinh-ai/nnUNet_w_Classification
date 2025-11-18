@@ -4,6 +4,7 @@
 This repository extends **nnUNetv2** to perform *multi-task learning* on pancreas CT scans:
 - **Semantic segmentation** (pancreas, lesion)
 - **Subtype classification** (3-class problem)
+
 The project modifies nnU-Net’s architecture by adding a **classification head** on top of the shared 3D ResEnc-M encoder, while keeping the standard decoder for segmentation.
 
 ## Repository Contents
@@ -18,8 +19,7 @@ The project modifies nnU-Net’s architecture by adding a **classification head*
 ## Environments and Requirements
 **Run Environment**
 - OS: Windows 11
-- GPU: NVIDIA GeForce RTX 4090
-- RAM: 
+- GPU: NVIDIA GeForce RTX 4090 24GB
 - CUDA version: 12.9
 - python version: 3.12.12
 
