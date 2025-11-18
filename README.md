@@ -1,17 +1,22 @@
 # Pancreas Segmentation and Classification with multitask nnUNet
 
 ## Overview
-Extend the original nnUNetv2 to perform:
-- Semantic Segmentation (Pancreas, Lesion)
-- Classification (Subtype prediction)
+This repository extends **nnUNetv2** to perform *multi-task learning* on pancreas CT scans:
+- **Semantic segmentation** (pancreas, lesion)
+- **Subtype classification** (3-class problem)
+The project modifies nnU-Net’s architecture by adding a **classification head** on top of the shared 3D ResEnc-M encoder, while keeping the standard decoder for segmentation.
 
-Added files:
-- dataset_conversion.py
-- nnUNetTrainer_multitask.py
-- MultiTaskPredictor.py (run inference)
+## Repository Contents
+
+| File | Description |
+|------|-------------|
+| `dataset_conversion.py` | Converts original dataset into nnUNetv2 format and generates metadata files. |
+| `nnUNetTrainer_multitask.py` | Custom multitask trainer extending nnUNetTrainer (segmentation + classification). |
+| `multitask_predict.py` | Standalone inference script for multi-task prediction. |
+| `comparing_inference_speed.py` | Script to benchmark baseline vs optimized inference speed. |
   
 ## Environments and Requirements
-Run Environment:
+**Run Environment**
 - OS: Windows 11
 - GPU: NVIDIA GeForce RTX 4090
 - RAM: 
@@ -20,7 +25,10 @@ Run Environment:
 
 To install environments:
 ```setup
-# Make sure install pytorch properly
+# Install PyTorch first
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu129
+
+# Clone nnUNet
 git clone https://github.com/MIC-DKFZ/nnUNet.git
 cd nnUNet
 pip install -e .
@@ -28,7 +36,7 @@ pip install -e .
 pip install -r requirements.txt
 ```
 
-Set up nnUNet paths
+Set nnUNet paths (Windows Command Prompt)
 ```
 set nnUNet_raw=nnUNet_data/nnUNet_raw
 set nnUNet_preprocessed=nnUNet_data/nnUNet_preprocessed
@@ -36,11 +44,11 @@ set nnUNet_results=nnUNet_data/nnUNet_results
 ```
 
 ## Data Preparation
-1. Copy original data into imagesTr, imagesTs
-2. Copy segmentation mask into labelsTr
-3. Create:
+1. Place original data into imagesTr, imagesTs
+2. Place segmentation mask into labelsTr
+3. Generate:
   * dataset.json
-  * final_splits.json 
+  * splits_final.json 
   * classification_labels.csv
   
 ```python
@@ -64,12 +72,13 @@ nnUNetv2_train 101 3d_fullres 0 -tr nnUNetTrainer_multitask -p nnUNetResEncUNetM
 ```
 
 ## Evaluation
-Validation metrics (from Metrics Reloaded paper) was combined into the trainer script (after training process):
-- For segmentation:
+Validation metrics (following Metrics Reloaded) are computed automatically after training process and stored at: ""nnUNet_results/<dataset_folder>/<model_folder>/fold_0/final_metrics.json""
+
+- Segmentation metrics:
   * Dice score (dsc)
   * Normalized surface dice (nsd)
   * Absolute volume different (avd)
-- For classification:
+- Classification metrics:
   * Balanced accuracy (balanced_accuracy_score)
   * Macro average F1 (f1_macro)
   * AUROC (auroc)
@@ -77,43 +86,40 @@ Validation metrics (from Metrics Reloaded paper) was combined into the trainer s
   * Expected calibration error (ece)
   * Brier score (brier_score)
 
-These metrics are reported per class and stored in:
-nnUNet_results/.../final_metrics.json
-
 ## Results
 
 | Segmentation               |  Pancreas (label > 0)  |   Lesion (label = 2)   |
 | :------------------------- | :--------: | :--------: |
-| Dice                       |            |            | 
-| Normalized Surface Dice    |            |            |   
-| Absolute volume different  |            |            |   
+| Dice                       |  0.89      |       0.58     | 
 
-| Classification             |  Subtype0  |  Subtype1  |  Subtype2  |
-| :------------------------- | :--------: | :--------: | :--------: |
-| F1 macro                   |            |            |            |
+| Classification             |            |
+| :------------------------- | :--------: |
+| F1 macro                   |    0.19        | 
 
 ## Inference
-Custom multitask inference script
-| Mode          | Description                                                     |
-|:--------------|:----------------------------------------------------------------|
-| Default       | Run baseline inference                                          |
-| --compare     | Runs baseline + optimized inference and prints time comparison  |
+This repo uses a standalone multi-task inference script (multitask_predict.py) instead of nnUNetPredictor (due to multi-head architecture).
+multitask_predict.py 
+```
+python multitask_predict.py \
+    --model_folder nnUNet_results/<dataset_folder>/<model_folder> \
+    --input_folder nnUNet_data/nnUNet_raw/<dataset_folder>/imagesTs
+    --output_folder predictions --step_size 0.5 --enable_tta
+```
+Faster inference
+* Increase --step_size (e.g., 0.7)
+* Remove --enable_tta
 
 Outputs:
-- Segmentation predictions
-- Classification results &arr classifications.json
-- Speed comparison (optional: uncomment in script to save) &arr *speed_comparison.json*
+* Segmentation masks (*.nii.gz)
+* Classification results &arr subtype_results.csv
+* Speed comparison (optional: uncomment in script to save) &arr speed_comparison.json
 
-```
-python MultiTaskPredictor.py -i imagesTs -o predictions -d 001 --compare
-```
-  
 | Baseline | Optimized | Speed up (%) |
 |:--------:|:---------:|:------------:|
 | x        | y         | z%           |
 
-
 ## References
+* Pancreatic cancer detection via non-contrast CT and deep learning: Cao et al., Nature Medicine, 2023
 * nnU-Net: Isensee et al., Nature Methods, 2021
 * Metrics Reloaded: Maier-Hein et al., Medical Image Analysis, 2022
 
