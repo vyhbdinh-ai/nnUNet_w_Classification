@@ -67,7 +67,7 @@ nnUNetv2_plan_and_preprocess -d 101 -c 3d_fullres --verify_dataset_integrity -pl
 ## Train
 `nnUNetTrainer_multitask.py`
 
-**Move nnUNetTrainer_multitask.py into "/nnunetv2/training/nnUNetTrainer"**
+**Move `nnUNetTrainer_multitask.py` into "/nnunetv2/training/nnUNetTrainer"**
 
 Then start training with:
 ```
@@ -123,7 +123,7 @@ python comparing_speed.py \
 Outputs:
 * Segmentation masks (*.nii.gz)
 * Classification results &arr subtype_results.csv
-* Speed comparison (optional: uncomment in script to save) &arr speed_comparison.json
+* Speed comparison (optional: uncomment in script to save) &rarr speed_comparison.json
 
 | Baseline (seconds per case) | Optimized (seconds per case) | Speed up (%) |
 |:--------:|:---------:|:------------:|
