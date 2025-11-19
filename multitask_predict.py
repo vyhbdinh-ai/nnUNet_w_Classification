@@ -29,15 +29,15 @@ def load_model(model_folder: str, fold: int, checkpoint_name: str, device: torch
         device=device)
     
     trainer.initialize()
-
     checkpoint_path = join(model_folder, f'fold_{fold}', checkpoint_name)
     checkpoint = torch.load(checkpoint_path, map_location=device)
+    trainer.network.decoder.deep_supervision = False
 
     with torch.no_grad():
         patch_size = plans['configurations'][configuration_name]['patch_size']
-        dummy_input = torch.randn(1, 1, *patch_size).to(device)
+        dummy_input = torch.randn(1, 1, *patch_size).to(device) #for the adapter and fusion 
         trainer.network.eval()
-        _ = trainer.network(dummy_input)
+        _ = trainer.network(dummy_input) 
         enc_features = trainer.network.encoder(dummy_input)
         _ = trainer.network.ClassificationHead(enc_features)
     
@@ -56,6 +56,25 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
         image = (image - mean) / std
     return image
 
+def create_gaussian_kernel(patch_size, device):
+    """Pre-compute Gaussian kernel once"""
+    gaussian = torch.zeros((1, 1) + tuple(patch_size), device=device)
+    center = [p // 2 for p in patch_size]
+    
+    # Vectorized computation (faster)
+    d_grid, h_grid, w_grid = torch.meshgrid(
+        torch.arange(patch_size[0], device=device),
+        torch.arange(patch_size[1], device=device),
+        torch.arange(patch_size[2], device=device),
+        indexing='ij'
+    )
+    
+    dist = ((d_grid - center[0]) / (patch_size[0] / 2)) ** 2 + \
+           ((h_grid - center[1]) / (patch_size[1] / 2)) ** 2 + \
+           ((w_grid - center[2]) / (patch_size[2] / 2)) ** 2
+    
+    gaussian[0, 0] = torch.exp(-dist / 2)
+    return gaussian
 
 def sliding_window_inference(
     network,
@@ -86,17 +105,9 @@ def sliding_window_inference(
     seg_output = torch.zeros((1, num_classes) + img_shape, dtype=torch.float32, device=device)
     seg_counts = torch.zeros((1, num_classes) + img_shape, dtype=torch.float32, device=device)
     cls_logits_list = []
-    
-    gaussian = torch.zeros((1, 1) + tuple(patch_size), device=device)
-    center = [p // 2 for p in patch_size]
-    for d in range(patch_size[0]):
-        for h in range(patch_size[1]):
-            for w in range(patch_size[2]):
-                dist = ((d - center[0]) / (patch_size[0] / 2)) ** 2 + \
-                       ((h - center[1]) / (patch_size[1] / 2)) ** 2 + \
-                       ((w - center[2]) / (patch_size[2] / 2)) ** 2
-                gaussian[0, 0, d, h, w] = np.exp(-dist / 2)
-    
+
+    gaussian = create_gaussian_kernel(patch_size, device)
+
     positions = []
     for d in range(0, img_shape[0], steps[0]):
         for h in range(0, img_shape[1], steps[1]):
@@ -146,7 +157,7 @@ def sliding_window_inference(
                 weighted_flip = seg_pred_flip * gaussian
                 seg_output[:, :, d:d_end, h:h_end, w:w_end] += weighted_flip
                 seg_counts[:, :, d:d_end, h:h_end, w:w_end] += gaussian
-    # Normalize
+
     seg_output = seg_output / (seg_counts + 1e-8)
     
     # Remove padding if pad
@@ -173,13 +184,9 @@ def predict_case(
     device: torch.device,
     use_tta: bool = False
 ) -> Tuple[np.ndarray, int, dict]:
-    """
-    Predict segmentation and classification for one case
-    Returns: segmentation mask, predicted class, metadata
-    """
     # Load image
     sitk_img = sitk.ReadImage(image_path)
-    image_np = sitk.GetArrayFromImage(sitk_img)  # [D, H, W]
+    image_np = sitk.GetArrayFromImage(sitk_img)  
     
     metadata = {
         'spacing': sitk_img.GetSpacing(),
@@ -188,12 +195,12 @@ def predict_case(
         'size': sitk_img.GetSize()}
     
     image_np = normalize_image(image_np)
-    image_np = image_np[np.newaxis, ...]  # [1, D, H, W]
-    image_tensor = torch.from_numpy(image_np).float().unsqueeze(0).to(device)  # [1, 1, D, H, W]
+    image_np = image_np[np.newaxis, ...]  
+    image_tensor = torch.from_numpy(image_np).float().unsqueeze(0).to(device) 
     seg_logits, cls_logits = sliding_window_inference(
         network, image_tensor, patch_size, step_size, device, use_tta)
     
-    seg_pred = torch.argmax(seg_logits, dim=1)[0].cpu().numpy()  # [D, H, W]
+    seg_pred = torch.argmax(seg_logits, dim=1)[0].cpu().numpy() 
     cls_pred = torch.argmax(cls_logits, dim=1).item()
     
     return seg_pred, cls_pred, metadata

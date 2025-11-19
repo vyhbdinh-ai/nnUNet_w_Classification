@@ -7,7 +7,7 @@ import sys
 import os
 
 def run_inference(config_name, enable_tta, step_size, input_folder, output_folder, model_folder):    
-    # Create output folder for each configuration
+    # Create output folder for this configuration
     config_output_folder = Path(output_folder) / config_name
     config_output_folder.mkdir(parents=True, exist_ok=True)
     
@@ -45,6 +45,7 @@ def run_inference(config_name, enable_tta, step_size, input_folder, output_folde
         return execution_time, False
 
 def compare_speeds(args):
+    # Define configurations: baseline and optimized
     configurations = [
         {
             "name": "baseline",
@@ -55,10 +56,15 @@ def compare_speeds(args):
         {
             "name": "optimized", 
             "enable_tta": False,
-            "step_size": 0.7,
+            "step_size": 0.85,
             "description": "Optimized (TTA disabled, step_size=0.7)"
         }]
     
+    input_path = Path(args.input_folder)
+    nifti_files = list(input_path.glob("*.nii")) + list(input_path.glob("*.nii.gz"))
+    num_cases = len(nifti_files)
+    #print(f"Number of cases: {num_cases}")
+
     results = []
     for config in configurations:
         execution_time, success = run_inference(
@@ -68,36 +74,41 @@ def compare_speeds(args):
             args.input_folder,
             args.output_folder,
             args.model_folder)
+        time_per_case = execution_time / num_cases
         results.append({
             "Configuration": config["name"],
             "Description": config["description"],
             "TTA": "Enabled" if config["enable_tta"] else "Disabled",
             "Step Size": config["step_size"],
             "Time (seconds)": round(execution_time, 2),
+            "Time per Case (seconds)": round(time_per_case, 2),
             "Status": "Success" if success else "Failed"})
-    
+        
+    # Calculate speed improvements
     baseline_time = results[0]["Time (seconds)"]
 
-    for i, result in enumerate(results[1:], 1):
-        optimized_time = result["Time (seconds)"]
-        speedup = baseline_time / optimized_time
-        improvement_pct = ((baseline_time - optimized_time) / baseline_time) * 100
-        results[i]["Improvement %"] = round(improvement_pct, 1)
-    
+    if len(results) >= 2 and all(r["Status"] == "Success" for r in results):
+        baseline = results[0]
+        optimized = results[1]
+        
+        total_speedup = baseline["Time (seconds)"] / optimized["Time (seconds)"]
+        per_case_speedup = baseline["Time per Case (seconds)"] / optimized["Time per Case (seconds)"]
+        improvement_pct = ((baseline["Time (seconds)"] - optimized["Time (seconds)"]) / baseline["Time (seconds)"]) * 100
+        
+        results[1]["Improvement %"] = round(improvement_pct, 1)
+        results[1]["Speedup Factor"] = round(total_speedup, 2)
+
     df = pd.DataFrame(results)
     print(df.to_string(index=False))
     
-    if len(results) >= 2 and all(r["Status"] == "Success" for r in results):        
-        baseline = results[0]
-        optimized = results[1]
-        num_cases = len(results)/2
-        print(f"Baseline (TTA enabled, step_size=0.5):")
-        print(f"Time: {baseline['Time (seconds)']} seconds")
-        print(f"Time per case: {baseline['Time (seconds)']/num_cases} seconds")
-        print(f"\nOptimized (TTA disabled, step_size=0.75):")
-        print(f"Time: {optimized['Time (seconds)']} seconds")
-        print(f"Improvement: {optimized.get('Improvement %', 'N/A')}% faster")
-    
+    # Calculate and display summary
+    if len(results) >= 2 and all(r["Status"] == "Success" for r in results):
+        print(f"\nSUMMARY:")
+        print(f"Number of cases: {num_cases}")
+        print(f"Baseline (TTA enabled): {baseline['Time per Case (seconds)']:.1f}s per case")
+        print(f"Optimized (TTA disabled): {optimized['Time per Case (seconds)']:.1f}s per case")
+        print(f"Improvement: {improvement_pct:.1f}% faster")
+        print(f"Speedup factor: {total_speedup:.2f}x")
     # Save detailed results to CSV
     results_csv = Path(args.output_folder) / "speed_comparison_results.csv"
     df.to_csv(results_csv, index=False)
