@@ -65,6 +65,7 @@ nnUNetv2_plan_and_preprocess -d 101 -c 3d_fullres --verify_dataset_integrity -pl
 ```
 
 ## Train
+`nnUNetTrainer_multitask.py`
 **Move nnUNetTrainer_multitask.py into "/nnunetv2/training/nnUNetTrainer"**
 
 Then start training with:
@@ -98,6 +99,7 @@ Validation metrics (following Metrics Reloaded) are computed automatically after
 | F1 macro                   |    0.19        | 
 
 ## Inference
+`multitask_predict.py`
 This repo uses a standalone multi-task inference script (multitask_predict.py) instead of nnUNetPredictor (due to multi-head architecture).
 multitask_predict.py 
 ```
@@ -110,6 +112,13 @@ Faster inference
 * Increase --step_size (e.g., 0.85)
 * Remove --enable_tta
 
+Comparing speed between BASELINE and OPTIMIZED inferences: `comparing_speed.py`
+```
+python comparing_speed.py \
+    --input_folder nnUNet_data/nnUNet_raw/<dataset_folder>/imagesTs \
+    --output_folder predictions
+    --model_folder nnUNet_data/nnUNet_results/<dataset_folder>/<model_folder>
+```
 Outputs:
 * Segmentation masks (*.nii.gz)
 * Classification results &arr subtype_results.csv
