@@ -44,6 +44,7 @@ set nnUNet_results=nnUNet_data/nnUNet_results
 ```
 
 ## Data Preparation
+`dataset_conversion.py`
 1. Place original data into imagesTr, imagesTs
 2. Place segmentation mask into labelsTr
 3. Generate:
