@@ -66,6 +66,7 @@ nnUNetv2_plan_and_preprocess -d 101 -c 3d_fullres --verify_dataset_integrity -pl
 
 ## Train
 `nnUNetTrainer_multitask.py`
+
 **Move nnUNetTrainer_multitask.py into "/nnunetv2/training/nnUNetTrainer"**
 
 Then start training with:
